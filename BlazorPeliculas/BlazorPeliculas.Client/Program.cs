@@ -1,5 +1,6 @@
 using BlazorPeliculas.Client;
 using BlazorPeliculas.Client.Repositorios;
+using CurrieTechnologies.Razor.SweetAlert2;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
@@ -18,5 +19,6 @@ await builder.Build().RunAsync();
 //La manera organizada es Centralizar la declaracion de Servicios
 void ConfigureServices(IServiceCollection services)
 {
+    services.AddSweetAlert2();
     services.AddSingleton<IRepositorio, Repositorio>();
 }

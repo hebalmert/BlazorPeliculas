@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CurrieTechnologies.Razor.SweetAlert2" Version="5.6.0" />
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.8" PrivateAssets="all" />
@@ -15,10 +16,5 @@
   <ItemGroup>
     <ProjectReference Include="..\BlazorPeliculas.Shared\BlazorPeliculas.Shared.csproj" />
   </ItemGroup>
-
-    <!--Hacer que ciertos Nuget o Dll no se descarguen con todo el proyecto-->
-	<ItemGroup>
-		<BlazorWebAssemblyLazyLoad Include="MathNet.Numerics.dll"/>
-	</ItemGroup>
 
 </Project>

@@ -1,0 +1,66 @@
+﻿@inject SweetAlertService swal
+
+<NavigationLock OnBeforeInternalNavigation="OnBeforeInternalNavigation"></NavigationLock>
+
+<EditForm EditContext="editContext" OnValidSubmit="OnValitSubmit">
+    <DataAnnotationsValidator />
+    <div class="mb-3">
+        <label>Nombre:</label>
+        <div>
+            <InputText class="form-control" @bind-Value="@Genero!.Nombre" />
+            <ValidationMessage For="@(()=> Genero.Nombre)" />
+        </div>
+    </div>
+
+    <button class="btn btn-success" type="submit">Guardar Cambios</button>
+</EditForm>
+
+@code {
+
+
+    [EditorRequired]
+    [Parameter]
+    public GeneroCls Genero { get; set; } = null!;
+
+    [EditorRequired]
+    [Parameter]
+    public EventCallback OnValitSubmit { get; set; }
+
+    private EditContext editContext = null!;
+
+    public bool FormularioPosteadoConExito { get; set; } = false;
+
+    protected override void OnInitialized()
+    {
+        editContext = new(Genero);
+    }
+
+    private async Task OnBeforeInternalNavigation(LocationChangingContext context)
+    {
+        var formularioFueEditado = editContext.IsModified();
+        if (!formularioFueEditado)
+        {
+            return;
+        }
+        if (FormularioPosteadoConExito)
+        {
+            return;
+        }
+
+        var resultado = await swal.FireAsync(new SweetAlertOptions
+        {
+            Title= "Confirmacion",
+            Text = "Desea Abandonar la Pagina y perder Cambios?",
+            Icon = SweetAlertIcon.Warning,
+            ShowCancelButton = true
+        });
+
+        var confirmado = !string.IsNullOrEmpty(resultado.Value);
+        if (confirmado)
+        {
+            return;    
+        }
+
+        context.PreventNavigation();
+    }
+}
