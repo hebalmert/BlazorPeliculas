@@ -1,5 +1,7 @@
 ﻿@page "/generos/crear"
 @inject NavigationManager navigationManager
+@inject IRepositorio repositorio
+@inject SweetAlertService swal
 
 <h3>CrearGenero</h3>
 
@@ -12,12 +14,21 @@
 
     private GeneroCls? Genero = new GeneroCls();
 
-    private void Create()
+    private async Task Create()
     {
-        formularioGenero!.FormularioPosteadoConExito = true;
-        Console.WriteLine($"Ejecuntando metodo");
-        Console.WriteLine($"Nombre del Genero: {Genero!.Nombre}");
-        navigationManager.NavigateTo("/generos");
+        var httpResponse = await repositorio.Post("/api/generos", Genero!);
+        if (httpResponse.Error)
+        {
+            var message = await httpResponse.GetErrorMessageAsync();
+            await swal.FireAsync("Error", message, SweetAlertIcon.Error);
+            return;
+        }
+        else
+        {
+            formularioGenero!.FormularioPosteadoConExito = true;
+            navigationManager.NavigateTo("/generos");
+        }
+       
     }
 
 }

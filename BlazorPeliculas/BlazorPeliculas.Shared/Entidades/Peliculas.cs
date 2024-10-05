@@ -1,12 +1,27 @@
-﻿namespace BlazorPeliculas.Shared.Entidades
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace BlazorPeliculas.Shared.Entidades
 {
     public class Peliculas
     {
+        public int Id { get; set; }
+
+        [Required]
         public string Titulo { get; set; } = null!;
 
-        public DateTime FechaLanzamiento { get; set; }
+        public string?  Resumen { get; set; }
 
-        public string? Poster { get; set; } = null!;
+        public bool EnCartelera { get; set; }
+
+        public string? Trailer { get; set; }
+
+        public DateTime? FechaLanzamiento { get; set; }
+
+        public string? Poster { get; set; }
+
+        public List<GeneroPelicula> GenerosPelicula { get; set; } = new List<GeneroPelicula>();
+
+        public List<PeliculaActor> PeliculasActor { get; set; } = new List<PeliculaActor>();
 
         public string? TituloCortado 
         { 
@@ -14,7 +29,7 @@
             {
                 if (string.IsNullOrWhiteSpace(Titulo))
                 {
-                    return null!;
+                    return null;
                 }
 
                 if (Titulo.Length > 60)
