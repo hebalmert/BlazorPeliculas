@@ -16,9 +16,20 @@ namespace BlazorPaliculas.Server.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<GeneroCls>>> Get() 
+        public async Task<ActionResult<IEnumerable<GeneroCls>>> Get()
         {
             return await _context.Generos.ToListAsync();
+        }
+
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<GeneroCls>> Get(int id)
+        {
+            var modelo = await _context.Generos.FirstOrDefaultAsync(x => x.Id == id);
+            if (modelo is null)
+            {
+                return NotFound();
+            }
+            return modelo!;
         }
 
 
@@ -29,6 +40,15 @@ namespace BlazorPaliculas.Server.Controllers
             await _context.SaveChangesAsync();
 
             return genero.Id;
+        }
+
+        [HttpPut]
+        public async Task<ActionResult> Put(GeneroCls modelo)
+        {
+            _context.Update(modelo);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
         }
     }
 }

@@ -6,7 +6,7 @@
         <a href="@urlPelicula" class="text-decoration-none">@item.Titulo</a>
     </p>
     <div>
-        <a class="btn btn-info">Editar</a>
+        <a class="btn btn-info" href="/peliculas/editar/@item.Id">Editar</a>
         <button type="button" class="btn btn-danger" @onclick="@(()=> EliminarPelicula.InvokeAsync(item))">
             Borrar
         </button>

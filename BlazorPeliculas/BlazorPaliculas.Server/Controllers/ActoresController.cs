@@ -1,4 +1,5 @@
-﻿using BlazorPaliculas.Server.Helpers;
+﻿using AutoMapper;
+using BlazorPaliculas.Server.Helpers;
 using BlazorPeliculas.Shared.Entidades;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,13 +13,16 @@ namespace BlazorPaliculas.Server.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IAlmacenadorArchivos _almacenadorArchivos;
+        private readonly IMapper _mapper;
         private readonly string contenedor = "personas";
         private readonly string contenedorLocal = "wwwroot\\Images\\ImgActor";
 
-        public ActoresController(ApplicationDbContext context, IAlmacenadorArchivos almacenadorArchivos)
+        public ActoresController(ApplicationDbContext context, 
+            IAlmacenadorArchivos almacenadorArchivos, IMapper mapper)
         {
             _context = context;
             _almacenadorArchivos = almacenadorArchivos;
+            _mapper = mapper;
         }
 
         [HttpGet]
@@ -27,16 +31,28 @@ namespace BlazorPaliculas.Server.Controllers
             return await _context.Actores.ToListAsync();
         }
 
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<Actor>> Get(int id)
+        {
+            var modelo = await _context.Actores.FirstOrDefaultAsync(x => x.Id == id);
+            if (modelo is null)
+            {
+                return NotFound();
+            }
+            return modelo!;
+        }
+
+
         [HttpGet("buscar/{textBusqueda}")]
-        public async Task<ActionResult<List<Actor>>> Get(string textBusqueda) 
+        public async Task<ActionResult<List<Actor>>> Get(string textBusqueda)
         {
             if (string.IsNullOrWhiteSpace(textBusqueda))
             {
                 return new List<Actor>();
             }
-            
+
             return await _context.Actores.
-                Where(x=> x.Nombre.ToLower().Contains(textBusqueda.ToLower())).ToListAsync();
+                Where(x => x.Nombre.ToLower().Contains(textBusqueda.ToLower())).ToListAsync();
         }
 
         [HttpPost]
@@ -54,6 +70,28 @@ namespace BlazorPaliculas.Server.Controllers
             await _context.SaveChangesAsync();
 
             return modelo.Id;
+        }
+
+        [HttpPut]
+        public async Task<ActionResult> Put(Actor modelo)
+        {
+            var actorDB = await _context.Actores.FirstOrDefaultAsync(x => x.Id == modelo.Id);
+            if (actorDB is null)
+            {
+                return NotFound();
+            }
+
+            //Dice que los datos que vienen en Modelo los actualice en actorDB para Actualizar el registro
+            actorDB = _mapper.Map(modelo, actorDB);
+
+            if (!string.IsNullOrWhiteSpace(modelo.Foto))
+            {
+                var fotoActor = Convert.FromBase64String(modelo.Foto);
+                actorDB.Foto = await _almacenadorArchivos.EditFileAsync(fotoActor, ".jpg", contenedor, modelo.Foto);
+            }
+
+            await _context.SaveChangesAsync();
+            return NoContent();
         }
     }
 }
