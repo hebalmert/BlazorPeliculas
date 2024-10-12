@@ -2,12 +2,15 @@
 using BlazorPaliculas.Server.Helpers;
 using BlazorPeliculas.Shared.DTOs;
 using BlazorPeliculas.Shared.Entidades;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlazorPaliculas.Server.Controllers
 {
     [Route("api/peliculas")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [ApiController]
     public class PeliculasController : ControllerBase
     {
@@ -17,7 +20,7 @@ namespace BlazorPaliculas.Server.Controllers
         private readonly string contenedor = "peliculas";
         private readonly string contenedorLocal = "wwwroot\\Images\\ImgActor";
 
-        public PeliculasController(ApplicationDbContext context, 
+        public PeliculasController(ApplicationDbContext context,
             IAlmacenadorArchivos almacenadorArchivos, IMapper mapper)
         {
             _context = context;
@@ -26,20 +29,21 @@ namespace BlazorPaliculas.Server.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<HomePageDTO>> Get() 
+        [AllowAnonymous]
+        public async Task<ActionResult<HomePageDTO>> Get()
         {
             var limite = 6;
-            
-            var peliculaEnCartelera = await _context.Peliculas.Where(x=> x.EnCartelera).Take(limite)
-                .OrderByDescending(x=> x.FechaLanzamiento).ToListAsync();
+
+            var peliculaEnCartelera = await _context.Peliculas.Where(x => x.EnCartelera).Take(limite)
+                .OrderByDescending(x => x.FechaLanzamiento).ToListAsync();
 
             var fechaActual = DateTime.Today;
 
-            var proximosEstrenos = await _context.Peliculas.Where(x=> x.FechaLanzamiento > fechaActual)
-                .OrderBy(x=> x.FechaLanzamiento).Take(limite).ToListAsync();
+            var proximosEstrenos = await _context.Peliculas.Where(x => x.FechaLanzamiento > fechaActual)
+                .OrderBy(x => x.FechaLanzamiento).Take(limite).ToListAsync();
 
-            var resultado = new HomePageDTO() 
-            { 
+            var resultado = new HomePageDTO()
+            {
                 PeliculasEnCartelera = peliculaEnCartelera,
                 ProximosEstrenos = proximosEstrenos
             };
@@ -49,15 +53,16 @@ namespace BlazorPaliculas.Server.Controllers
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<PeliculaVisualizarDTO>> GetPelicula(int id) 
+        [AllowAnonymous]
+        public async Task<ActionResult<PeliculaVisualizarDTO>> GetPelicula(int id)
         {
             var pelicula = await _context.Peliculas
                 .Include(x => x.GenerosPelicula).ThenInclude(x => x.Genero)
-                .Include(x => x.PeliculasActor.OrderBy(p=> p.Orden)).ThenInclude(x => x.Actor)
+                .Include(x => x.PeliculasActor.OrderBy(p => p.Orden)).ThenInclude(x => x.Actor)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (pelicula is null)
-            { 
+            {
                 return NotFound();
             }
 
@@ -67,9 +72,9 @@ namespace BlazorPaliculas.Server.Controllers
 
             var Nmodelo = new PeliculaVisualizarDTO();
             Nmodelo.Pelicula = pelicula;
-            Nmodelo.Generos = pelicula.GenerosPelicula.Select(gp=> gp.Genero).ToList()!;
-            Nmodelo.Actores = pelicula.PeliculasActor.Select(pa => new Actor 
-            { 
+            Nmodelo.Generos = pelicula.GenerosPelicula.Select(gp => gp.Genero).ToList()!;
+            Nmodelo.Actores = pelicula.PeliculasActor.Select(pa => new Actor
+            {
                 Nombre = pa.Actor!.Nombre,
                 Foto = pa.Actor.Foto,
                 Personaje = pa.Personaje,
@@ -82,15 +87,49 @@ namespace BlazorPaliculas.Server.Controllers
             return Nmodelo;
         }
 
+        [HttpGet("filtrar")]
+        [AllowAnonymous]
+        public async Task<ActionResult<List<Peliculas>>> Get([FromQuery] ParametrosBusquedaPeliculasDTO modelo)
+        {
+            var peliculasQueryable = _context.Peliculas.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(modelo.Titulo))
+            {
+                peliculasQueryable = peliculasQueryable.Where(x => x.Titulo.Contains(modelo.Titulo));
+            }
+            if (modelo.EnCartelera)
+            {
+                peliculasQueryable = peliculasQueryable.Where(x => x.EnCartelera);
+            }
+            if (modelo.Estrenos)
+            {
+                var hoy = DateTime.Today;
+                peliculasQueryable = peliculasQueryable.Where(x => x.FechaLanzamiento >= hoy);
+            }
+            if (modelo.GeneroId != 0)
+            {
+                peliculasQueryable = peliculasQueryable
+                    .Where(x => x.GenerosPelicula.Select(y => y.GeneroId).Contains(modelo.GeneroId));
+            }
+
+            //TODO: Sistema de votacion
+
+            await HttpContext.InsertarParametrosPaginacionEnRespuesta(peliculasQueryable, modelo.CantidadRegistros);
+
+            var peliculas = await peliculasQueryable.Paginar(modelo.PaginacionDTO).ToListAsync();
+            return peliculas;
+        }
+
+
         [HttpGet("actualizar/{id:int}")]
-        public async Task<ActionResult<PeliculaActualizacionDTO>> PutGet(int id) 
+        public async Task<ActionResult<PeliculaActualizacionDTO>> PutGet(int id)
         {
             var peliculaActionResult = await GetPelicula(id);
             if (peliculaActionResult.Result is NotFoundResult) { return NotFound(); }
 
             var peliculaParaElDTO = peliculaActionResult.Value;
             var generosSeleccionadosIds = peliculaParaElDTO!.Generos.Select(x => x.Id).ToList();
-            var generosNoSeleccionados = await _context.Generos.Where(x=> !generosSeleccionadosIds.Contains(x.Id)).ToListAsync();
+            var generosNoSeleccionados = await _context.Generos.Where(x => !generosSeleccionadosIds.Contains(x.Id)).ToListAsync();
 
             var modelo = new PeliculaActualizacionDTO();
             modelo.Pelicula = peliculaParaElDTO.Pelicula;
@@ -132,11 +171,11 @@ namespace BlazorPaliculas.Server.Controllers
         }
 
         [HttpPut]
-        public async Task<ActionResult> Put(Peliculas modelo) 
+        public async Task<ActionResult> Put(Peliculas modelo)
         {
             var peliculaDb = await _context.Peliculas
-                .Include(x=> x.GenerosPelicula)
-                .Include(x=> x.PeliculasActor)
+                .Include(x => x.GenerosPelicula)
+                .Include(x => x.PeliculasActor)
                 .FirstOrDefaultAsync(x => x.Id == modelo.Id);
             if (peliculaDb is null)
             {
@@ -153,6 +192,23 @@ namespace BlazorPaliculas.Server.Controllers
 
             EscribirOrdenActores(peliculaDb);
             await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<ActionResult> Delete(int id)
+        {
+            var peli = await _context.Peliculas.FirstOrDefaultAsync(x => x.Id == id);
+            if (peli is null)
+            {
+                return NotFound();
+            }
+
+            _context.Remove(peli);
+            await _context.SaveChangesAsync();
+
+            _almacenadorArchivos.DeleteImage(peli.Poster!, contenedor);
 
             return NoContent();
         }

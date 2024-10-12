@@ -1,10 +1,13 @@
 ﻿using BlazorPeliculas.Shared.Entidades;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlazorPaliculas.Server.Controllers
 {
     [Route("api/generos")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [ApiController]
     public class GenerosController : ControllerBase
     {
@@ -16,6 +19,7 @@ namespace BlazorPaliculas.Server.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<GeneroCls>>> Get()
         {
             return await _context.Generos.ToListAsync();
@@ -47,6 +51,18 @@ namespace BlazorPaliculas.Server.Controllers
         {
             _context.Update(modelo);
             await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<ActionResult> Delete(int id)
+        { 
+            var filasAfectadas = await _context.Generos.Where(x=> x.Id == id).ExecuteDeleteAsync();
+            if (filasAfectadas == 0)
+            {
+                return NotFound();
+            }
 
             return NoContent();
         }

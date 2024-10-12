@@ -1,18 +1,16 @@
 ﻿@inject IJSRuntime js
+@inject NavigationManager navigationManager
+@inject IRepositorio repositorio
+@inject SweetAlertService swal
 
 <div style="display:flex; flex-wrap:wrap; align-items: center;">
     <ListadoGenerico Listado="Peliculas">
         <HayRegistros Context="item">
             <PeliculaIndividual item="item"
-                                EliminarPelicula="EliminarPelicula"></PeliculaIndividual>
+                                EliminarPelicula="EliminarPelicula" @key="item.Id"></PeliculaIndividual>
         </HayRegistros>
     </ListadoGenerico>
 </div>
-
-
-
-
-
 
 
 @code {
@@ -26,8 +24,17 @@
         var confirmado = await js.Confirm($"Desea eliminar la pelicula {pelicula.Titulo}");
         if (confirmado)
         {
-            Console.WriteLine($"Eliminando una Pelicula");
-            Peliculas!.Remove(pelicula);
+            var responseHttp = await repositorio.Delete($"/api/peliculas/{pelicula.Id}");
+            if (responseHttp.Error)
+            {
+                var mensajeError = await responseHttp.GetErrorMessageAsync();
+                await swal.FireAsync("Error", mensajeError, SweetAlertIcon.Error);
+            }
+            else
+            {
+                Peliculas!.Remove(pelicula);
+                
+            }
         }
     }
 }

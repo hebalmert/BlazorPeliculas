@@ -1,13 +1,16 @@
 ﻿using AutoMapper;
 using BlazorPaliculas.Server.Helpers;
+using BlazorPeliculas.Shared.DTOs;
 using BlazorPeliculas.Shared.Entidades;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlazorPaliculas.Server.Controllers
 {
     [Route("api/actores")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [ApiController]
     public class ActoresController : ControllerBase
     {
@@ -17,7 +20,7 @@ namespace BlazorPaliculas.Server.Controllers
         private readonly string contenedor = "personas";
         private readonly string contenedorLocal = "wwwroot\\Images\\ImgActor";
 
-        public ActoresController(ApplicationDbContext context, 
+        public ActoresController(ApplicationDbContext context,
             IAlmacenadorArchivos almacenadorArchivos, IMapper mapper)
         {
             _context = context;
@@ -26,9 +29,12 @@ namespace BlazorPaliculas.Server.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Actor>>> Get()
+        public async Task<ActionResult<IEnumerable<Actor>>> Get([FromQuery] PaginacionDTO paginacion)
         {
-            return await _context.Actores.ToListAsync();
+            var queryable = _context.Actores.AsQueryable();
+            await HttpContext.InsertarParametrosPaginacionEnRespuesta(queryable, paginacion.CantidadRegistros);
+
+            return await queryable.OrderBy(x => x.Nombre).Paginar(paginacion).ToListAsync();
         }
 
         [HttpGet("{id:int}")]
@@ -91,6 +97,23 @@ namespace BlazorPaliculas.Server.Controllers
             }
 
             await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<ActionResult> Delete(int id)
+        {
+            var actor = await _context.Actores.FirstOrDefaultAsync(x => x.Id == id);
+            if (actor is null)
+            {
+                return NotFound();
+            }
+
+            _context.Remove(actor);
+            await _context.SaveChangesAsync();
+
+            _almacenadorArchivos.DeleteImage(actor.Foto!, contenedor);
+
             return NoContent();
         }
     }

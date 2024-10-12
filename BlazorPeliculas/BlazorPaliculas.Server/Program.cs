@@ -1,6 +1,10 @@
 using BlazorPaliculas.Server;
 using BlazorPaliculas.Server.Helpers;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +22,27 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<ApplicationDbContext>
     (opciones => opciones.UseSqlServer("name=DefaultConnection"));
 
+//para manejo de usuario
+builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
+//para manejar JWT
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(option => 
+        option.TokenValidationParameters = new TokenValidationParameters
+        { 
+            ValidateIssuer = false,  // es para validar emisores
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["jwtkey"]!)),
+            ClockSkew = TimeSpan.Zero
+        }
+    );
+
+
 builder.Services.AddScoped<IAlmacenadorArchivos, AlmacenadorArchivos>();
 builder.Services.AddHttpContextAccessor();
 
@@ -32,7 +57,7 @@ builder.Services.AddCors(options =>
         builder.WithOrigins("https://localhost:7122") // dominio de tu aplicación Blazor
                .AllowAnyHeader()
                .AllowAnyMethod()
-               .WithExposedHeaders(new string[] { "Totalpages", "conteo" });
+               .WithExposedHeaders(new string[] { "totalPaginas", "conteo" });
     });
 });
 

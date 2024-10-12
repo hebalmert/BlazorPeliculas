@@ -1,4 +1,5 @@
 ﻿@page "/peliculas/crear"
+@attribute [Authorize(Roles = "admin")]
 @inject NavigationManager navigationManager
 @inject IRepositorio repositorio
 @inject SweetAlertService swal

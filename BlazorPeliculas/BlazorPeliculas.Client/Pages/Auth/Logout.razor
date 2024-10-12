@@ -1,0 +1,16 @@
+﻿@page "/Logout"
+@inject IRepositorio repositorio
+@inject NavigationManager navigationManager
+@inject SweetAlertService swal
+@inject ILoginService loginService
+
+<p>Deslogueando...</p>
+
+@code {
+    protected async override Task OnInitializedAsync()
+    {
+        await loginService.Logout();
+        navigationManager.NavigateTo("");
+    }
+
+}

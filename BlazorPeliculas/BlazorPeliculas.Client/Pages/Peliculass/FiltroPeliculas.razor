@@ -1,13 +1,15 @@
 ﻿@page "/peliculas/buscar"
 @inject IRepositorio repositorio
+@inject NavigationManager navigationManager
 
 <h3>Filtro Peliculas</h3>
 
 <div class="row g-3 align-items-center mb-3">
     <div class="col-sm-3">
         <input type="text" class="form-control" id="Titulo" placeholder="Titulo Palicula"
-            @bind-value="titulo" @bind-value:event="oninput"
-            @onkeypress="@((KeyboardEventArgs e) => TituloKeyPress(e))"/>
+               autocomplete="off"
+               @bind-value="titulo" @bind-value:event="oninput"
+               @onkeypress="@((KeyboardEventArgs e) => TituloKeyPress(e))" />
     </div>
 
     <div class="col-sm-3">
@@ -22,7 +24,7 @@
 
     <div class="col-sm-6" style="display:flex;">
         <div class="form-check me-2">
-            <input type="checkbox" class="form-check-input" id="estrenos" @bind="futurosEstrenos"/>
+            <input type="checkbox" class="form-check-input" id="estrenos" @bind="futurosEstrenos" />
             <label class="form-check-label" for="estrenos">Futuros Estrenos</label>
         </div>
         <div class="form-check me-2">
@@ -41,49 +43,122 @@
     </div>
 </div>
 
+<Paginacion PaginaActual="paginaActual"
+            PaginasTotales="paginasTotales"
+            PaginasSeleccionada="PaginaSeleccionada">
+</Paginacion>
+
 <ListadoPeliculas Peliculas="Peliculas"></ListadoPeliculas>
 
 @code {
-    private string titulo = "";
 
-    private string generoSeleccionado = "0";
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string titulo { get; set; } = "";
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "generoid")]
+    public int generoSeleccionado { get; set; }
 
     private List<GeneroCls> generos = new List<GeneroCls>();
 
-    private bool futurosEstrenos = false;
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "estrenos")]
+    public bool futurosEstrenos { get; set; } = false;
 
-    private bool enCartelera = false;
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public bool enCartelera { get; set; } = false;
 
-    private bool masVotadas = false;
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public bool masVotadas { get; set; } = false;
 
     private List<Peliculas>? Peliculas;
 
-    protected override void OnInitialized()
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "pagina")]
+    public int paginaActual { get; set; } = 1;
+
+    Dictionary<string, string> queryStringsDict = new Dictionary<string, string>();
+
+    private int paginasTotales;
+
+    protected override async Task OnInitializedAsync()
     {
-        Peliculas = repositorio.ObtenerPeliculas();
+        if (paginaActual == 0) { paginaActual = 1; }
+
+        await ObtenerGeneros();
+        var querystrings = GenerarQueryString();
+        await RealizarBusqueda(querystrings);
     }
 
-    private void TituloKeyPress(KeyboardEventArgs e)
+    private async Task TituloKeyPress(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
-            CargarNuevasPeliculas();
+            await CargarNuevasPeliculas();
 
         }
     }
 
-    private void CargarNuevasPeliculas()
+    private async Task PaginaSeleccionada(int pagina)
     {
-        Peliculas = repositorio.ObtenerPeliculas().Where(x => x.Titulo.ToLower().Contains(titulo.ToLower())).ToList();    
+        paginaActual = pagina;
+        await CargarNuevasPeliculas();
     }
 
-    private void LimpiarOnClick()
+    private string GenerarQueryString()
     {
-        Peliculas = repositorio.ObtenerPeliculas();
+        if (queryStringsDict is null)
+        {
+            queryStringsDict = new Dictionary<string, string>();
+        }
+
+        queryStringsDict["generoId"] = generoSeleccionado.ToString();
+        queryStringsDict["titulo"] = titulo ?? string.Empty;
+        queryStringsDict["encatelera"] = enCartelera.ToString();
+        queryStringsDict["estrenos"] = futurosEstrenos.ToString();
+        queryStringsDict["masvotadas"] = masVotadas.ToString();
+        queryStringsDict["pagina"] = paginaActual.ToString();
+
+        var valoresPorDefecto = new List<string>() { "false", "0" };
+
+        return string.Join("&", queryStringsDict.Where(x => !valoresPorDefecto.Contains(x.Value.ToLower()))
+        .Select(x => $"{x.Key}={System.Web.HttpUtility.UrlEncode(x.Value)}").ToList());
+    }
+
+    private async Task ObtenerGeneros()
+    {
+        var respuestaHttp = await repositorio.Get<List<GeneroCls>>("/api/generos");
+        generos = respuestaHttp.Response!;
+    }
+
+    private async Task CargarNuevasPeliculas()
+    {
+        var queryStrings = GenerarQueryString();
+        navigationManager.NavigateTo("/peliculas/buscar?" + queryStrings);
+
+        await RealizarBusqueda(queryStrings);
+        // Peliculas = repositorio.ObtenerPeliculas().Where(x => x.Titulo.ToLower().Contains(titulo.ToLower())).ToList();
+    }
+
+    private async Task RealizarBusqueda(string queryStrings)
+    {
+        var respuestaHttp = await repositorio.Get<List<Peliculas>>("/api/peliculas/filtar?" + queryStrings);
+        paginasTotales = int.Parse(respuestaHttp.HttpResponseMessage.Headers.GetValues("totalPaginas").FirstOrDefault()!);
+
+        Peliculas = respuestaHttp.Response;
+    }
+
+    private async Task LimpiarOnClick()
+    {
         titulo = "";
-        generoSeleccionado = "0";
+        generoSeleccionado = 0;
         futurosEstrenos = false;
         enCartelera = false;
         masVotadas = false;
+
+        await CargarNuevasPeliculas();
     }
 }

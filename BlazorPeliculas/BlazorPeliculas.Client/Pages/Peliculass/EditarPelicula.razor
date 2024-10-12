@@ -1,4 +1,5 @@
 ﻿@page "/peliculas/editar/{PeliculaId:int}"
+@attribute [Authorize(Roles = "admin")]
 @inject NavigationManager navigationManager
 @inject IRepositorio repositorio
 @inject SweetAlertService swal
